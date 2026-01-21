@@ -49,6 +49,9 @@ void Inf_Encoder_GetSize(int *pcm_size, int *raw_size)
     {
         // 直接调用官方 API 获取需要的输入和输出 buffer 大小
         esp_audio_enc_get_frame_size(encoder_handle, pcm_size, raw_size);
+    } else {
+        if (pcm_size) *pcm_size = 0;
+        if (raw_size) *raw_size = 0;
     }
 }
 

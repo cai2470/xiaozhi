@@ -168,18 +168,18 @@ static void App_Audio_SRToBufferTaskFunc(void *args)
         // 3. 只有唤醒了 并且是说话才将语音放入缓冲
         if (is_wakup && res->vad_state == VAD_SPEECH)
         {
-            // 先将SR缓冲数据放入,否则会出现数据丢失 (vad_cache 包含了检测到人声前的一小段音频)
+            // 优先处理 vad_cache (仅在说话开始的第一帧存在)，确保不丢失单词开头
             if (res->vad_cache_size > 0)
             {
                 if (xRingbufferSend(sr_to_encoder_buff, res->vad_cache, res->vad_cache_size, 0) == pdFALSE)
                 {
-                    MyLogW("sr_to_encoder_buff 满了，丢弃了 vad_cache 数据");
+                    MyLogW("sr_to_encoder_buff 满，丢弃 VAD 预录数据");
                 }
             }
-            // 将语音识别后的音频放入缓冲
+            // 存入当前帧音频
             if (xRingbufferSend(sr_to_encoder_buff, res->data, res->data_size, 0) == pdFALSE)
             {
-                MyLogW("sr_to_encoder_buff 满了，丢弃了音频数据");
+                MyLogW("sr_to_encoder_buff 满，丢弃当前音频帧");
             }
         }
     }
