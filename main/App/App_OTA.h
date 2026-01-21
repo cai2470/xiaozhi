@@ -5,6 +5,7 @@
 #include "Common_Config.h"
 #include "nvs_flash.h"
 #include "cJSON.h"
+#include "App_Display.h"
 
 void App_OTA_Init(void);
 /**

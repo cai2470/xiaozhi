@@ -15,7 +15,7 @@ void Inf_SR_Init(void)
     afe_config->vad_init = true;                                 // 启动语音活动检测
     afe_config->vad_mode = VAD_MODE_2;                           // 值越大,人声认定越严格
     afe_config->vad_min_speech_ms = 300;                         // 人声认定最短时间
-    afe_config->vad_min_noise_ms = 300;                         // 静音认定最短时间
+    afe_config->vad_min_noise_ms = 300;                          // 静音认定最短时间
     afe_config->wakenet_init = true;                             // 启动唤醒词
     afe_config->wakenet_mode = DET_MODE_95;                      // 值越大,越不容易误触发
     afe_config->agc_init = false;                                // 关闭自动增益
@@ -48,5 +48,11 @@ void Inf_SR_Feed(int16_t *datas)
 // 从SR语音模型获得结果
 void Inf_SR_Fetch(afe_fetch_result_t **res)
 {
-    *res = afe_handle->fetch(afe_data);
+    // afe_handle->fetch(afe_data) 返回的是一个指向结果结构体的指针
+    // 我们通过 *res（解引用一次）找到外部那个真正的 res 指针变量
+    // 然后把地址填进去
+    if (res != NULL)
+    {
+        *res = afe_handle->fetch(afe_data);
+    }
 }

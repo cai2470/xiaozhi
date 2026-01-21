@@ -17,6 +17,7 @@
 #include "App_OTA.h"
 #include "App_Audio.h"
 #include "App_Communication.h"
+#include "App_Display.h"
 
 extern bool is_wakup;
 
@@ -24,13 +25,14 @@ static void App_Application_KeyCallback(void *button_handle, void *user_data);
 
 static void App_Application_WIFIConnectedCallback(void);
 
-static void App_Application_QrCodeCallback(const char *payload);
 
 static void App_Application_CreateRingBuffer(void);
 
 static void App_Application_Wakup(void);
 
 static void App_Application_VadChange(VadChangeState state);
+
+static void App_Application_ShowQrCode(const char *payload);
 
 void App_Application_Start(void)
 {
@@ -40,20 +42,26 @@ void App_Application_Start(void)
 
     // 初始化按钮
     Inf_key_Init();
+    // 初始化显示任务
+    App_Display_Init();
+    App_Display_SetTitleText("配网中...");
+    // 注册显示二维码的回调函数
+    Driver_WIFI_RegisterShowQrCodeCallback(App_Application_ShowQrCode);
 
     // 注册按钮的回调函数
     Inf_key_RegisterKey1Callbacks(BUTTON_SINGLE_CLICK, App_Application_KeyCallback, (void *)KEY1);
     Inf_key_RegisterKey2Callbacks(BUTTON_LONG_PRESS_UP, App_Application_KeyCallback, (void *)KEY2);
     // 注册wifi的回调函数
     Driver_WIFI_RegisterCallback(App_Application_WIFIConnectedCallback);
-    // 注册二维码的回调函数
-    Driver_WIFI_RegisterShowQrCodeCallback(App_Application_QrCodeCallback);
 
     // 初始化WIFI
     Driver_WIFI_Init();
 
     // 等待WiFi连接成功的等待函数，就是进入阻塞态的函数
     xEventGroupWaitBits(global_event, WIFI_CONNECTED, pdFALSE, pdTRUE, portMAX_DELAY);
+    App_Display_SetTitleText("启动中...");
+    // 删除二维码
+    App_Display_DeleteQRCode();
 
     // OTA初始化
     App_OTA_Init();
@@ -61,7 +69,6 @@ void App_Application_Start(void)
     App_OTA_Activity();
 
     
-
     // 创建需要的环形缓存区
     App_Application_CreateRingBuffer();
 
@@ -71,23 +78,7 @@ void App_Application_Start(void)
     // 初始化通信模块 (WebSocket)
     App_Communication_Init();
 
-
-
-
-    
-    // // 创建Http服务请求的初始化
-    // Driver_HttpClient_Init("https://api.tenclass.net/xiaozhi/ota/", HTTP_METHOD_POST);
-    // // 发送请求头
-    // Driver_HttpClient_SetHeader("Content-Type", "application/json");
-    // Driver_HttpClient_SetHeader("User-Agent", "bread-compact-wifi-128x64/1.0.1");
-    // Driver_HttpClient_SetHeader("Device-Id", "11:99:33:19:55:77");
-    // Driver_HttpClient_SetHeader("Client-Id", "7b94d69a-9808-4c59-9c9b-704333b38aff");
-
-    // 【修正点1】填入压缩并转义后的 JSON 数据
-    // C语言字符串里双引号 " 需要写成 \"
-    // char *body = "{\"application\":{\"version\":\"1.0.1\",\"elf_sha256\":\"c8a8ecb6d6fbcda682494d9675cd1ead240ecf38bdde75282a42365a0e396033\"},\"board\":{\"type\":\"bread-compact-wifi\",\"name\":\"bread-compact-wifi-128x64\",\"ssid\":\"卧室\",\"rssi\":-55,\"channel\":1,\"ip\":\"192.168.1.11\",\"mac\":\"11:22:33:44:55:66\"}}";
-    // Driver_HttpClient_SetBody(body, strlen(body));
-    // Driver_HttpClient_Request();
+     App_Display_SetContentText("请使用\"你好,小智\"唤醒");
 }
 
 // 按键的回调函数
@@ -115,18 +106,13 @@ static void App_Application_WIFIConnectedCallback(void)
     xEventGroupSetBits(global_event, WIFI_CONNECTED);
 }
 
-static void App_Application_QrCodeCallback(const char *payload)
-{
-    MyLogE("QR Code Payload: %s", payload);
-}
-
 /**
  * @brief 清除缓冲区数据，防止旧会话残留数据干扰新交互
  */
 static void App_Application_ClearRingBuffer(RingbufHandle_t buff)
 {
     size_t size = 0;
-    void* data = NULL;
+    void *data = NULL;
     while (1)
     {
         data = xRingbufferReceive(buff, &size, 0);
@@ -162,14 +148,14 @@ static void App_Application_Wakup(void)
         }
         break;
     case SPEAKING:
-        //服务器放弃说话
+        // 服务器放弃说话
         App_Communication_Abort();
         break;
     default:
         break;
     }
 
-    //清除缓冲区中上一个唤醒词之后没有发完的数据
+    // 清除缓冲区中上一个唤醒词之后没有发完的数据
     App_Application_ClearRingBuffer(sr_to_encoder_buff);
     App_Application_ClearRingBuffer(encoder_to_ws_buff);
 
@@ -180,18 +166,26 @@ static void App_Application_Wakup(void)
 // Vad状态变化
 static void App_Application_VadChange(VadChangeState state)
 {
-    //MyLogE("%s", state == SPEECH_TO_SILENCE ? "说话变静音" : "静音变说话");
+    // MyLogE("%s", state == SPEECH_TO_SILENCE ? "说话变静音" : "静音变说话");
 
-    if( is_wakup && state == SILENCE_TO_SPEECH && communicationStatus!= SPEAKING ){
+    if (is_wakup && state == SILENCE_TO_SPEECH && communicationStatus != SPEAKING)
+    {
         MyLogE("开始监听...");
-        //用户在说话, 小智没说话
+        // 用户在说话, 小智没说话
         communicationStatus = LISTING;
-        //开始监听
+        // 开始监听
         App_Communication_StartListing();
-    }else if( is_wakup && state == SPEECH_TO_SILENCE && communicationStatus == LISTING ){
+        App_Display_SetTitleText("小智正在听...");
+    }
+    else if (is_wakup && state == SPEECH_TO_SILENCE && communicationStatus == LISTING)
+    {
         communicationStatus = IDLE;
         MyLogE("结束监听...");
-        //结束监听
+        // 结束监听
         App_Communication_StopListing();
     }
+}
+static void App_Application_ShowQrCode(const char *payload)
+{
+    App_Display_ShowQRCode((void *)payload, strlen(payload));
 }

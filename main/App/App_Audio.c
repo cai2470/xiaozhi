@@ -55,6 +55,10 @@ static void App_Audio_CopyRingBuffer(RingbufHandle_t handle, uint8_t *buff, int 
             size -= len;
             index += len;
             vRingbufferReturnItem(handle, data);
+        } else {
+            // 理论上 portMAX_DELAY 不应返回 NULL，但为了健壮性，
+            // 如果发生意外错误，应退出循环防止死循环
+            break;
         }
     }
 }

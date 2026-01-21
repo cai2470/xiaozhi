@@ -13,8 +13,6 @@ static void App_Communication_WebsocketFinishFunc(void);
 // 上传用户音频给服务器
 static void App_Communication_UploadAudioTaskFunc(void *args);
 
-
-
 void App_Communication_Init(void)
 {
     // 初始化websocket
@@ -69,13 +67,33 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
                 MyLogE("小智说话中...");
                 // 小智开始说话
                 communicationStatus = SPEAKING;
+                App_Display_SetTitleText("说话中...");
             }
             else if (strcmp(state->valuestring, "stop") == 0)
             {
                 // 小智说完了
                 MyLogE("小智说话完成...");
                 communicationStatus = IDLE;
+                App_Display_SetTitleText("聆听中...");
             }
+            else if (strcmp(state->valuestring, "sentence_start") == 0)
+            {
+
+                cJSON *text = cJSON_GetObjectItemCaseSensitive(root, "text");
+
+                if (text && cJSON_IsString(text))
+                {
+
+                    App_Display_SetContentText(text->valuestring);
+                }
+            }
+        }
+        else if (strcmp(type->valuestring, "llm") == 0)
+        {
+            // 获取emoji
+            cJSON *emotion = cJSON_GetObjectItemCaseSensitive(root, "emotion");
+
+            App_Display_SetEmojiText(emotion->valuestring);
         }
 
         // 回收内存
@@ -254,8 +272,8 @@ static void App_Communication_UploadAudioTaskFunc(void *args)
         // 取出音频数据
         datas = (char *)xRingbufferReceive(encoder_to_ws_buff, &size, portMAX_DELAY);
 
-        //MyLogE("LEN=%d",size);
-        // 只有在监听的时候 才需要发送音频
+        // MyLogE("LEN=%d",size);
+        //  只有在监听的时候 才需要发送音频
         if (communicationStatus == LISTING && datas && size > 0)
         {
             // 将音频发到服务器
@@ -272,18 +290,19 @@ static void App_Communication_UploadAudioTaskFunc(void *args)
 
 /**
  * @brief 让服务器放弃说话
- * 
+ *
  */
-void App_Communication_Abort(void){
+void App_Communication_Abort(void)
+{
 
-    cJSON* root =  cJSON_CreateObject();
+    cJSON *root = cJSON_CreateObject();
 
-    cJSON_AddStringToObject(root,"session_id",session_id);
-    cJSON_AddStringToObject(root,"type","abort");
+    cJSON_AddStringToObject(root, "session_id", session_id);
+    cJSON_AddStringToObject(root, "type", "abort");
 
-    char* json =  cJSON_PrintUnformatted(root);
+    char *json = cJSON_PrintUnformatted(root);
 
-    Driver_Websocket_Send(json,strlen(json),WEBSOCKET_TEXT_DATA);
+    Driver_Websocket_Send(json, strlen(json), WEBSOCKET_TEXT_DATA);
 
     cJSON_Delete(root);
     free(json);

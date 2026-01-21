@@ -6,6 +6,7 @@
 #include "cJSON.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "App_Display.h"
 
 void App_Communication_Init(void);
 bool App_Communication_IsConnected(void);

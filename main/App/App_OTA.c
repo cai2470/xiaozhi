@@ -23,10 +23,52 @@ void App_OTA_Init(void)
 }
 void App_OTA_Activity(void)
 {
+    while (1)
+    {
+        App_OTA_SetHeader();
 
-    App_OTA_SetHeader();
+        App_OTA_SetBodyAndRequest();
+        char *str = NULL;
 
-    App_OTA_SetBodyAndRequest();
+        // 等待激活结果：确保解析到了 websocket_url 和 token
+        MyLogE("等待激活数据...");
+        EventBits_t bits = xEventGroupWaitBits(global_event,
+                                               ACTIVATION_SUCCESS | ACTIVATION_FAIL | ACTIVATION_DATA_ERROR,
+                                               pdTRUE, pdFALSE, portMAX_DELAY);
+
+        // 应该直接判断具体的成功/失败位
+        if ((bits & HTTP_REQUEST_ERROR) || (bits & ACTIVATION_DATA_ERROR))
+        {
+            MyLogE("网络请求或数据错误，重试...");
+            vTaskDelay(pdMS_TO_TICKS(3000));
+            continue;
+        }
+        // 【修复点 2】: 使用 & 运算来判断，不要用 ==
+        if (bits & ACTIVATION_SUCCESS)
+        {
+            // 激活成功
+            MyLogE("激活成功...");
+            break;
+        }
+        else if (bits & ACTIVATION_FAIL) // 显式判断失败位
+        {
+            // 没有激活，且【修复点 3】增加空指针检查
+            if (activation_code != NULL)
+            {
+                asprintf(&str, "请拿着激活码[%s]到官网先激活", activation_code);
+                MyLogE("%s", str);
+                App_Display_SetContentText(str);
+                free(str); // 别忘了释放 asprintf 分配的内存
+            }
+            else
+            {
+                MyLogE("设备未激活，但未获取到激活码");
+            }
+        }
+        // 等待5s之后再去查询是否激活
+        vTaskDelay(5000);
+    }
+    App_Display_SetContentText("激活成功,启动中...");
 }
 
 static void App_OTA_HttpReceiveHandle(char *datas, int len)
@@ -55,10 +97,12 @@ static void App_OTA_HttpReceiveHandle(char *datas, int len)
 
     if (cJSON_IsString(url_obj) && cJSON_IsString(token_obj))
     {
-        if (websocket_url) free(websocket_url);
+        if (websocket_url)
+            free(websocket_url);
         websocket_url = strdup(url_obj->valuestring);
-        
-        if (token) free(token);
+
+        if (token)
+            free(token);
         token = strdup(token_obj->valuestring);
     }
 
@@ -76,7 +120,8 @@ static void App_OTA_HttpReceiveHandle(char *datas, int len)
         cJSON *code = cJSON_GetObjectItemCaseSensitive(activation, "code");
         if (cJSON_IsString(code))
         {
-            if (activation_code) free(activation_code);
+            if (activation_code)
+                free(activation_code);
             activation_code = strdup(code->valuestring);
             MyLogW("设备未激活，激活码: %s", activation_code);
         }
@@ -178,9 +223,10 @@ static void App_OTA_SetBodyAndRequest(void)
     free(json);
 }
 
-void generate_uuid_v4(char *out_str) {
+void generate_uuid_v4(char *out_str)
+{
     uint8_t uuid[16];
-    
+
     // 1. 获取硬件生成的随机原始字节
     esp_fill_random(uuid, 16);
 
@@ -191,7 +237,7 @@ void generate_uuid_v4(char *out_str) {
     uuid[8] = (uuid[8] & 0x3F) | 0x80;
 
     // 3. 格式化输出为 8-4-4-4-12 格式
-    sprintf(out_str, 
+    sprintf(out_str,
             "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
             uuid[0], uuid[1], uuid[2], uuid[3],
             uuid[4], uuid[5],
