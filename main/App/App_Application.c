@@ -25,7 +25,6 @@ static void App_Application_KeyCallback(void *button_handle, void *user_data);
 
 static void App_Application_WIFIConnectedCallback(void);
 
-
 static void App_Application_CreateRingBuffer(void);
 
 static void App_Application_Wakup(void);
@@ -68,7 +67,6 @@ void App_Application_Start(void)
     // 激活智能体
     App_OTA_Activity();
 
-    
     // 创建需要的环形缓存区
     App_Application_CreateRingBuffer();
 
@@ -78,7 +76,7 @@ void App_Application_Start(void)
     // 初始化通信模块 (WebSocket)
     App_Communication_Init();
 
-     App_Display_SetContentText("请使用\"你好,小智\"唤醒");
+    App_Display_SetContentText("请使用\"你好,小智\"唤醒");
 }
 
 // 按键的回调函数
