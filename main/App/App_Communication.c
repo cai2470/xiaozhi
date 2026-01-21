@@ -71,15 +71,17 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
                 cJSON *desc_json = cJSON_Parse(static_desc);
                 if (desc_json)
                 {
-                    // 3. 把 Inf_IOT.c 里原本空的 "" 替换成真的 session_id
-                    cJSON_ReplaceItemInObject(desc_json, "session_id", cJSON_CreateString(session_id));
+                    if (session_id && cJSON_GetObjectItem(desc_json, "session_id")) {
+                        // 3. 把 Inf_IOT.c 里原本空的 "" 替换成真的 session_id
+                        cJSON_ReplaceItemInObject(desc_json, "session_id", cJSON_CreateString(session_id));
 
-                    // 4. 转回字符串发送
-                    char *final_desc = cJSON_PrintUnformatted(desc_json);
-                    if (final_desc)
-                    {
-                        Driver_Websocket_Send(final_desc, strlen(final_desc), WEBSOCKET_TEXT_DATA);
-                        free(final_desc);
+                        // 4. 转回字符串发送
+                        char *final_desc = cJSON_PrintUnformatted(desc_json);
+                        if (final_desc)
+                        {
+                            Driver_Websocket_Send(final_desc, strlen(final_desc), WEBSOCKET_TEXT_DATA);
+                            free(final_desc);
+                        }
                     }
                     cJSON_Delete(desc_json);
                 }
@@ -89,14 +91,16 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
                 cJSON *status_json = cJSON_Parse(static_status);
                 if (status_json)
                 {
-                    // 你的 iot_status 字符串里没有 session_id 字段，所以是 Add
-                    cJSON_AddStringToObject(status_json, "session_id", session_id);
+                    if (session_id) {
+                        // 只有有 ID 时才添加，否则发了服务器也识别不了
+                        cJSON_AddStringToObject(status_json, "session_id", session_id);
 
-                    char *final_status = cJSON_PrintUnformatted(status_json);
-                    if (final_status)
-                    {
-                        Driver_Websocket_Send(final_status, strlen(final_status), WEBSOCKET_TEXT_DATA);
-                        free(final_status);
+                        char *final_status = cJSON_PrintUnformatted(status_json);
+                        if (final_status)
+                        {
+                            Driver_Websocket_Send(final_status, strlen(final_status), WEBSOCKET_TEXT_DATA);
+                            free(final_status);
+                        }
                     }
                     cJSON_Delete(status_json);
                 }
@@ -109,14 +113,21 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
         else if (strcmp(type->valuestring, "iot") == 0)
         {
             // 参照你发的 Inf_IOT.c，里面已经写好了 HandleCommand 函数
+            MyLogI("收到 AI 控制指令: %.*s", len, datas);
             // 所以这里 App_Communication 只需要做一个“传令兵”
             Inf_IOT_HandleCommand(datas, len);
         }
         else if (strcmp(type->valuestring, "tts") == 0)
         {
             // text to speach
-
             cJSON *state = cJSON_GetObjectItemCaseSensitive(root, "state");
+            if (state == NULL || !cJSON_IsString(state))
+            {
+                MyLogW("TTS 消息缺少 state 字段");
+                cJSON_Delete(root);
+                return;
+            }
+
             if (strcmp(state->valuestring, "start") == 0)
             {
                 MyLogE("小智说话中...");
@@ -147,8 +158,10 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
         {
             // 获取emoji
             cJSON *emotion = cJSON_GetObjectItemCaseSensitive(root, "emotion");
-
-            App_Display_SetEmojiText(emotion->valuestring);
+            if (emotion && cJSON_IsString(emotion))
+            {
+                App_Display_SetEmojiText(emotion->valuestring);
+            }
         }
 
         // 回收内存
@@ -157,7 +170,10 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
     else
     {
         // 音频数据
-        xRingbufferSend(ws_to_decoder_buff, datas, len, 1000);
+        if (xRingbufferSend(ws_to_decoder_buff, datas, len, 0) == pdFALSE)
+        {
+            MyLogW("ws_to_decoder_buff 满，丢弃下行音频数据");
+        }
     }
 }
 // websocket正常断开连接回调

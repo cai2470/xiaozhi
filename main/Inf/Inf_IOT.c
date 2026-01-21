@@ -20,8 +20,8 @@ static const char *descriptors =
             "\"b\":{\"description\":\"Blue value\",\"type\":\"number\"}"
         "},"
         "\"methods\":{"
-            "\"TurnOn\":{\"description\":\"Turn on the light\"},"
-            "\"TurnOff\":{\"description\":\"Turn off the light\"},"
+            "\"TurnOn\":{\"description\":\"Turn on the RGB LED light to white color\"},"
+            "\"TurnOff\":{\"description\":\"Turn off the RGB LED light completely\"},"
             "\"SetColor\":{\"description\":\"Set RGB color\",\"parameters\":{"
                 "\"r\":{\"description\":\"Red[0-255]\",\"type\":\"number\"},"
                 "\"g\":{\"description\":\"Green[0-255]\",\"type\":\"number\"},"
@@ -63,19 +63,19 @@ void Inf_IOT_HandleCommand(char *json_str, int len)
     }
 
     // 获取 commands 数组
-    cJSON *commands = cJSON_GetObjectItem(root, "commands");
-    if (commands)
+    cJSON *commands = cJSON_GetObjectItemCaseSensitive(root, "commands");
+    if (cJSON_IsArray(commands) && cJSON_GetArraySize(commands) > 0)
     {
         // 获取第一条指令
         cJSON *item = cJSON_GetArrayItem(commands, 0);
         if (item)
         {
             // 获取方法名
-            cJSON *method = cJSON_GetObjectItem(item, "method");
+            cJSON *method = cJSON_GetObjectItemCaseSensitive(item, "method");
             // 获取参数
-            cJSON *params = cJSON_GetObjectItem(item, "parameters");
+            cJSON *params = cJSON_GetObjectItemCaseSensitive(item, "parameters");
 
-            if (method && method->valuestring)
+            if (cJSON_IsString(method) && method->valuestring)
             {
                 // --- A: 开灯 ---
                 if (strcmp(method->valuestring, "TurnOn") == 0)
@@ -94,11 +94,11 @@ void Inf_IOT_HandleCommand(char *json_str, int len)
                 {
                     if (params)
                     {
-                        cJSON *r = cJSON_GetObjectItem(params, "r");
-                        cJSON *g = cJSON_GetObjectItem(params, "g");
-                        cJSON *b = cJSON_GetObjectItem(params, "b");
+                        cJSON *r = cJSON_GetObjectItemCaseSensitive(params, "r");
+                        cJSON *g = cJSON_GetObjectItemCaseSensitive(params, "g");
+                        cJSON *b = cJSON_GetObjectItemCaseSensitive(params, "b");
 
-                        if (r && g && b)
+                        if (cJSON_IsNumber(r) && cJSON_IsNumber(g) && cJSON_IsNumber(b))
                         {
                             int red = r->valueint;
                             int green = g->valueint;
