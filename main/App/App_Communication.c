@@ -51,11 +51,66 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
 
         if (strcmp(type->valuestring, "hello") == 0)
         {
-
-            // 解析出session_id
+            // --- A. 获取并保存 Session ID ---
             cJSON *session = cJSON_GetObjectItemCaseSensitive(root, "session_id");
-            xEventGroupSetBits(global_event, WEBSOCKET_HELLO_RESPONSE);
-            session_id = strdup(session->valuestring);
+            if (session && cJSON_IsString(session))
+            {
+                if (session_id)
+                    free(session_id);
+                session_id = strdup(session->valuestring); // 保存全局 session_id
+                xEventGroupSetBits(global_event, WEBSOCKET_HELLO_RESPONSE);
+            }
+
+            if (session_id)
+            {
+                // --- B. 发送 Descriptors (关键：动态注入 session_id) ---
+                // 1. 获取你在 Inf_IOT.c 里写的静态字符串
+                char *static_desc = Inf_IOT_GetDescriptors();
+
+                // 2. 解析成 JSON 对象以便修改
+                cJSON *desc_json = cJSON_Parse(static_desc);
+                if (desc_json)
+                {
+                    // 3. 把 Inf_IOT.c 里原本空的 "" 替换成真的 session_id
+                    cJSON_ReplaceItemInObject(desc_json, "session_id", cJSON_CreateString(session_id));
+
+                    // 4. 转回字符串发送
+                    char *final_desc = cJSON_PrintUnformatted(desc_json);
+                    if (final_desc)
+                    {
+                        Driver_Websocket_Send(final_desc, strlen(final_desc), WEBSOCKET_TEXT_DATA);
+                        free(final_desc);
+                    }
+                    cJSON_Delete(desc_json);
+                }
+
+                // --- C. 发送 Status (关键：动态注入 session_id) ---
+                char *static_status = Inf_IOT_GetStatus();
+                cJSON *status_json = cJSON_Parse(static_status);
+                if (status_json)
+                {
+                    // 你的 iot_status 字符串里没有 session_id 字段，所以是 Add
+                    cJSON_AddStringToObject(status_json, "session_id", session_id);
+
+                    char *final_status = cJSON_PrintUnformatted(status_json);
+                    if (final_status)
+                    {
+                        Driver_Websocket_Send(final_status, strlen(final_status), WEBSOCKET_TEXT_DATA);
+                        free(final_status);
+                    }
+                    cJSON_Delete(status_json);
+                }
+            }
+        }
+
+        // =================================================================
+        // 2. 处理 IoT 指令：直接转交，不要自己解析！
+        // =================================================================
+        else if (strcmp(type->valuestring, "iot") == 0)
+        {
+            // 参照你发的 Inf_IOT.c，里面已经写好了 HandleCommand 函数
+            // 所以这里 App_Communication 只需要做一个“传令兵”
+            Inf_IOT_HandleCommand(datas, len);
         }
         else if (strcmp(type->valuestring, "tts") == 0)
         {

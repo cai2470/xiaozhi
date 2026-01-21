@@ -7,6 +7,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "App_Display.h"
+#include "Inf_IOT.h"
+#include "Inf_Led.h"
 
 void App_Communication_Init(void);
 bool App_Communication_IsConnected(void);

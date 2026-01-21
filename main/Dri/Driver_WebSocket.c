@@ -126,11 +126,11 @@ void Driver_Websocket_Send(char *datas, int len, WebsocketDataType type)
 
         if (type == WEBSOCKET_BIN_DATA)
         {
-            esp_websocket_client_send_bin(wsClient, datas, len, 1000);
+            esp_websocket_client_send_bin(wsClient, datas, len, 10);
         }
         else
         {
-            esp_websocket_client_send_text(wsClient, datas, len, 1000);
+            esp_websocket_client_send_text(wsClient, datas, len, 10);
         }
     }
 }

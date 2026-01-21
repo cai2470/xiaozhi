@@ -18,6 +18,7 @@
 #include "App_Audio.h"
 #include "App_Communication.h"
 #include "App_Display.h"
+#include "Inf_Led.h"
 
 extern bool is_wakup;
 
@@ -41,9 +42,12 @@ void App_Application_Start(void)
 
     // 初始化按钮
     Inf_key_Init();
+    Inf_Led_Init();
+
     // 初始化显示任务
     App_Display_Init();
     App_Display_SetTitleText("配网中...");
+
     // 注册显示二维码的回调函数
     Driver_WIFI_RegisterShowQrCodeCallback(App_Application_ShowQrCode);
 

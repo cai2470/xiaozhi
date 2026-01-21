@@ -9,6 +9,8 @@ idf_component_register(SRCS
                         "Inf/Inf_Encoder.c"
                         "Inf/Inf_Decoder.c"
                         "Inf/Inf_Lcd.c"
+                        "Inf/Inf_Led.c"
+                        "Inf/Inf_IOT.c"
                         "App/App_Application.c"
                         "App/App_Audio.c"
                         "App/App_OTA.c"
