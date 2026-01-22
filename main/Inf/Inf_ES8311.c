@@ -1,5 +1,6 @@
 #include "Inf_ES8311.h"
-
+#include "nvs_flash.h"
+#include "nvs.h"
 
 #define SCL_PIN 1
 #define SDA_PIN 0
@@ -109,8 +110,8 @@ static void Inf_ES8311_CodecInit(void){
     };
     play_dev = esp_codec_dev_new(&dev_cfg);
  
-    //设置默认输出音量60
-    esp_codec_dev_set_out_vol(play_dev, 60.0);
+    //设置输出音量（使用从NVS加载的值或默认值）
+    esp_codec_dev_set_out_vol(play_dev, (float)s_volume);
     //设置输入信号增益
     esp_codec_dev_set_in_gain(play_dev, 30.0);
 
@@ -118,6 +119,16 @@ static void Inf_ES8311_CodecInit(void){
 }
 void Inf_ES8311_Init(void)
 {
+    // 从NVS加载保存的音量
+    nvs_handle_t my_handle;
+    esp_err_t err = nvs_open("audio", NVS_READONLY, &my_handle);
+    if (err == ESP_OK) {
+        int32_t vol = 60;
+        if (nvs_get_i32(my_handle, "volume", &vol) == ESP_OK) {
+            s_volume = (int)vol;
+        }
+        nvs_close(my_handle);
+    }
 
     // 1、初始化I2C
     Inf_ES8311_I2CInit();
@@ -135,6 +146,14 @@ void Inf_ES8311_Init(void)
 void Inf_ES8311_SetVolume(int volume){
     esp_codec_dev_set_out_vol(play_dev, volume);
     s_volume = volume;
+
+    // 将新音量保存到NVS
+    nvs_handle_t my_handle;
+    if (nvs_open("audio", NVS_READWRITE, &my_handle) == ESP_OK) {
+        nvs_set_i32(my_handle, "volume", (int32_t)volume);
+        nvs_commit(my_handle);
+        nvs_close(my_handle);
+    }
 }
 
 /**
