@@ -18,4 +18,5 @@ void App_Communication_SendWakup(void);
 void App_Communication_StartListing(void);
 void App_Communication_StopListing(void);
 void App_Communication_Abort(void);
+void App_Communication_PushStatus(void);
 #endif

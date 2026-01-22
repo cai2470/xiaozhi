@@ -30,12 +30,6 @@ static const char *descriptors =
         "}}"
     "]}";
 
-// 注意：静态状态字符串意味着状态永远是 off，
-// 如果你想让状态实时变化，这里以后需要改成动态生成的。
-// 目前为了跑通逻辑，先保持静态。
-static const char *iot_status =
-    "{\"type\":\"iot\",\"status\":[{\"name\":\"Light\",\"state\":\"off\"}]}";
-
 // ==========================================
 // 2. 接口实现
 // ==========================================
@@ -47,7 +41,33 @@ char *Inf_IOT_GetDescriptors(void)
 
 char *Inf_IOT_GetStatus(void)
 {
-    return (char *)iot_status;
+    MyLogI("正在获取设备实时状态以同步至 AI 服务器...");
+
+    // 改进点：动态生成状态，让 AI 知道灯到底是开还是关
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "type", "iot");
+    
+    cJSON *status_array = cJSON_CreateArray();
+    cJSON *light_status = cJSON_CreateObject();
+    cJSON_AddStringToObject(light_status, "name", "Light");
+
+    int r, g, b;
+    Inf_Led_GetColor(&r, &g, &b);
+
+    // 根据硬件实际状态返回 "on" 或 "off"
+    cJSON_AddStringToObject(light_status, "state", Inf_Led_Is_Open() ? "on" : "off");
+    cJSON_AddNumberToObject(light_status, "r", r);
+    cJSON_AddNumberToObject(light_status, "g", g);
+    cJSON_AddNumberToObject(light_status, "b", b);
+    
+    cJSON_AddItemToArray(status_array, light_status);
+    cJSON_AddItemToObject(root, "status", status_array);
+    
+    char *status_str = cJSON_PrintUnformatted(root);
+    // 注意：这里返回的字符串需要在调用处释放，或者使用静态缓冲区
+    // 为了兼容你现有的 App_Communication.c 逻辑，建议在 App_Communication 里处理释放
+    cJSON_Delete(root);
+    return status_str;
 }
 
 /**

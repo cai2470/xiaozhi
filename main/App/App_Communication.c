@@ -24,6 +24,36 @@ void App_Communication_Init(void)
     xTaskCreateWithCaps(App_Communication_UploadAudioTaskFunc, UPLOAD_AUDIO_TASK_NAME, UPLOAD_AUDIO_TASK_STACKDEPTH, NULL, UPLOAD_AUDIO_TASK_PRIORITY, &uploadHandle, MALLOC_CAP_SPIRAM);
 }
 
+/**
+ * @brief 主动向服务器推送当前设备状态
+ */
+void App_Communication_PushStatus(void)
+{
+    if (session_id == NULL || !Driver_Websocket_IsConnected()) {
+        MyLogW("PushStatus: 未连接或无 SessionID，跳过同步");
+        return;
+    }
+
+    char *raw_status = Inf_IOT_GetStatus();
+    if (raw_status == NULL) return;
+
+    cJSON *status_json = cJSON_Parse(raw_status);
+    if (status_json) {
+        // 确保 session_id 注入成功
+        if (!cJSON_HasObjectItem(status_json, "session_id")) {
+            cJSON_AddStringToObject(status_json, "session_id", session_id);
+        }
+        
+        char *final_status = cJSON_PrintUnformatted(status_json);
+        if (final_status) {
+            Driver_Websocket_Send(final_status, strlen(final_status), WEBSOCKET_TEXT_DATA);
+            free(final_status);
+        }
+        cJSON_Delete(status_json);
+    }
+    free(raw_status); // 释放 Inf_IOT_GetStatus 分配的字符串内存
+}
+
 // 处理websocket接收的数据
 static void App_Communication_WebsocketReceiveHandle(char *datas, int len, WebsocketDataType type)
 {
@@ -71,39 +101,20 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
                 cJSON *desc_json = cJSON_Parse(static_desc);
                 if (desc_json)
                 {
-                    if (session_id && cJSON_GetObjectItem(desc_json, "session_id")) {
-                        // 3. 把 Inf_IOT.c 里原本空的 "" 替换成真的 session_id
-                        cJSON_ReplaceItemInObject(desc_json, "session_id", cJSON_CreateString(session_id));
+                    // 3. 动态注入 session_id
+                    cJSON_ReplaceItemInObject(desc_json, "session_id", cJSON_CreateString(session_id));
 
-                        // 4. 转回字符串发送
-                        char *final_desc = cJSON_PrintUnformatted(desc_json);
-                        if (final_desc)
-                        {
-                            Driver_Websocket_Send(final_desc, strlen(final_desc), WEBSOCKET_TEXT_DATA);
-                            free(final_desc);
-                        }
+                    // 4. 转回字符串发送
+                    char *final_desc = cJSON_PrintUnformatted(desc_json);
+                    if (final_desc && Driver_Websocket_IsConnected()) {
+                        Driver_Websocket_Send(final_desc, strlen(final_desc), WEBSOCKET_TEXT_DATA);
+                        free(final_desc);
                     }
                     cJSON_Delete(desc_json);
                 }
 
-                // --- C. 发送 Status (关键：动态注入 session_id) ---
-                char *static_status = Inf_IOT_GetStatus();
-                cJSON *status_json = cJSON_Parse(static_status);
-                if (status_json)
-                {
-                    if (session_id) {
-                        // 只有有 ID 时才添加，否则发了服务器也识别不了
-                        cJSON_AddStringToObject(status_json, "session_id", session_id);
-
-                        char *final_status = cJSON_PrintUnformatted(status_json);
-                        if (final_status)
-                        {
-                            Driver_Websocket_Send(final_status, strlen(final_status), WEBSOCKET_TEXT_DATA);
-                            free(final_status);
-                        }
-                    }
-                    cJSON_Delete(status_json);
-                }
+                // --- C. 发送 Status ---
+                App_Communication_PushStatus();
             }
         }
 
@@ -116,6 +127,8 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
             MyLogI("收到 AI 控制指令: %.*s", len, datas);
             // 所以这里 App_Communication 只需要做一个“传令兵”
             Inf_IOT_HandleCommand(datas, len);
+            // 指令执行完后，立即推送最新状态给服务器，确保 AI 同步
+            App_Communication_PushStatus();
         }
         else if (strcmp(type->valuestring, "tts") == 0)
         {
@@ -242,7 +255,8 @@ void App_Communication_SendHello(void)
     cJSON_AddStringToObject(root, "transport", "websocket");
 
     cJSON *features = cJSON_CreateObject();
-    cJSON_AddBoolToObject(features, "mcp", false);
+    // 关键点：开启 MCP 支持，允许 AI 将设备视为“工具”进行调用
+    cJSON_AddBoolToObject(features, "mcp", true);
     cJSON_AddItemToObject(root, "features", features);
 
     cJSON *audio_params = cJSON_CreateObject();

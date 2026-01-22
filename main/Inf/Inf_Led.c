@@ -8,6 +8,8 @@
 #define LED_STRIP_USE_DMA 0
 
 led_strip_handle_t led_strip;
+static bool s_led_is_open = false;
+static int s_r = 0, s_g = 0, s_b = 0;
 
 void Inf_Led_Init(void)
 {
@@ -43,11 +45,16 @@ void Inf_Led_Open(void)
     }
     
     ESP_ERROR_CHECK(led_strip_refresh(led_strip));
+    s_led_is_open = true;
+    s_r = 240;
+    s_g = 240;
+    s_b = 240;
 }
 
 void Inf_Led_Close(void)
 {
     led_strip_clear(led_strip);
+    s_led_is_open = false;
 }
 
 
@@ -62,5 +69,21 @@ void Inf_Led_SetColor(int r, int g, int b)
     }
     // 刷新显示
     ESP_ERROR_CHECK(led_strip_refresh(led_strip));
+    s_led_is_open = true;
+    s_r = r;
+    s_g = g;
+    s_b = b;
 }
 
+// 【新增】获取灯光状态
+bool Inf_Led_Is_Open(void)
+{
+    return s_led_is_open;
+}
+
+void Inf_Led_GetColor(int *r, int *g, int *b)
+{
+    if (r) *r = s_r;
+    if (g) *g = s_g;
+    if (b) *b = s_b;
+}
