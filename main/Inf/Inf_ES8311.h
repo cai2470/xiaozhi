@@ -9,6 +9,7 @@
 
 void Inf_ES8311_Init(void);
 void Inf_ES8311_SetVolume(int volume);
+int Inf_ES8311_GetVolume(void);
 void Inf_ES8311_Open(void);
 void Inf_ES8311_Close(void);
 int Inf_ES8311_Read(uint8_t *datas, int len);

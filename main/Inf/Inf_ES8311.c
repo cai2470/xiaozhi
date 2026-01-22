@@ -18,6 +18,9 @@ i2s_chan_handle_t mic_handle;
 i2s_chan_handle_t speaker_handle;
 //编解码设备句柄
 esp_codec_dev_handle_t play_dev;
+
+// 记录当前音量状态，默认与初始化值 60 保持一致
+static int s_volume = 60;
 /**
  * @brief I2C初始化
  *
@@ -130,8 +133,15 @@ void Inf_ES8311_Init(void)
  * 
  */
 void Inf_ES8311_SetVolume(int volume){
-
     esp_codec_dev_set_out_vol(play_dev, volume);
+    s_volume = volume;
+}
+
+/**
+ * @brief 获取当前音量
+ */
+int Inf_ES8311_GetVolume(void){
+    return s_volume;
 }
 
 /**

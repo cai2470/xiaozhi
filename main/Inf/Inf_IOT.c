@@ -1,6 +1,7 @@
 #include "Inf_IOT.h"
 #include "cJSON.h"
 #include "Inf_Led.h"       // 必须引用，用于控制硬件
+#include "Inf_ES8311.h"    // 引用音频驱动以控制音量
 #include "Common_Debug.h"  // 用于打印日志
 
 // ==========================================
@@ -26,6 +27,16 @@ static const char *descriptors =
                 "\"r\":{\"description\":\"Red[0-255]\",\"type\":\"number\"},"
                 "\"g\":{\"description\":\"Green[0-255]\",\"type\":\"number\"},"
                 "\"b\":{\"description\":\"Blue[0-255]\",\"type\":\"number\"}"
+            "}}"
+        "}},"
+        "{\"name\":\"Speaker\","
+        "\"description\":\"System Speaker\","
+        "\"properties\":{"
+            "\"volume\":{\"description\":\"Current volume\",\"type\":\"number\"}"
+        "},"
+        "\"methods\":{"
+            "\"SetVolume\":{\"description\":\"Set speaker volume\",\"parameters\":{"
+                "\"volume\":{\"description\":\"Volume level [0-100]\",\"type\":\"number\"}"
             "}}"
         "}}"
     "]}";
@@ -60,6 +71,12 @@ char *Inf_IOT_GetStatus(void)
     cJSON_AddNumberToObject(light_status, "g", g);
     cJSON_AddNumberToObject(light_status, "b", b);
     
+    // 新增：上报音量状态
+    cJSON *speaker_status = cJSON_CreateObject();
+    cJSON_AddStringToObject(speaker_status, "name", "Speaker");
+    cJSON_AddNumberToObject(speaker_status, "volume", Inf_ES8311_GetVolume());
+    cJSON_AddItemToArray(status_array, speaker_status);
+
     cJSON_AddItemToArray(status_array, light_status);
     cJSON_AddItemToObject(root, "status", status_array);
     
@@ -128,6 +145,20 @@ void Inf_IOT_HandleCommand(char *json_str, int len)
                             
                             // 调用 LED 变色驱动 (需要在 Inf_Led.h 里声明)
                             Inf_Led_SetColor(red, green, blue);
+                        }
+                    }
+                }
+                // --- D: 设置音量 ---
+                else if (strcmp(method->valuestring, "SetVolume") == 0)
+                {
+                    if (params)
+                    {
+                        cJSON *vol = cJSON_GetObjectItemCaseSensitive(params, "volume");
+                        if (cJSON_IsNumber(vol))
+                        {
+                            int volume = vol->valueint;
+                            MyLogE(">>> 执行指令: 设置音量 (%d) <<<", volume);
+                            Inf_ES8311_SetVolume(volume);
                         }
                     }
                 }

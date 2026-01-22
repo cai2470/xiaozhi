@@ -199,6 +199,10 @@ void App_Display_SetTitleText(char *datas)
  */
 void App_Display_SetContentText(char *datas)
 {
+    if (datas == NULL) {
+        return;
+    }
+
     lvgl_port_lock(0);
     lv_label_set_text(contentLabel, datas);
     // 确保文字更新后，容器滚动回到最顶部
