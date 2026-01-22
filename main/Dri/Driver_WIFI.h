@@ -38,6 +38,8 @@ extern "C" {
    */
   void Driver_WIFI_RegisterShowQrCodeCallback(QrCodeCallback cb);
 
+  int Driver_WIFI_GetRSSI(void);
+
   /**
    * @brief 重置配网信息并重启
    */

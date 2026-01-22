@@ -249,3 +249,11 @@ void Driver_WIFI_RegisterShowQrCodeCallback(QrCodeCallback cb)
 {
     s_qrcode_cb = cb;
 }
+// 在 Driver_WIFI.c 中实现
+int Driver_WIFI_GetRSSI(void) {
+    wifi_ap_record_t ap_info;
+    if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+        return ap_info.rssi;
+    }
+    return 0; // 返回 0 表示未连接或获取失败
+}
