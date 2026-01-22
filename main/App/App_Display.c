@@ -7,7 +7,9 @@ lv_display_t *lvgl_disp;
 lv_obj_t *scr;
 lv_obj_t *title;
 lv_obj_t *contentLabel;
+lv_obj_t *contentCont; // 新增内容容器
 lv_obj_t *emojiLable;
+lv_obj_t *wifiIcon;    // 新增 WiFi 图标
 
 typedef struct
 {
@@ -80,6 +82,14 @@ static void App_Display_LvglInit(void)
 }
 
 /**
+ * @brief 透明度动画回调函数
+ */
+static void App_Display_OpaAnimCb(void * obj, int32_t v)
+{
+    lv_obj_set_style_opa((lv_obj_t *)obj, (lv_opa_t)v, 0);
+}
+
+/**
  * @brief 创建需要的lvgl组件
  *
  */
@@ -89,46 +99,74 @@ static void App_Display_CreateCompent(void)
     // 获取一个活动的屏幕
     scr = lv_scr_act();
     lvgl_port_lock(0);
-    /*------------------创建标题------------------------*/
-    // 创建一个标签
-    title = lv_label_create(scr);
-    // 设置标签的大小
-    lv_obj_set_size(title, lv_pct(100), lv_pct(10));
-    // 设置背景透明度
-    lv_obj_set_style_bg_opa(title, LV_OPA_COVER, 0);
-    // 设置背景色
-    lv_obj_set_style_bg_color(title, lv_palette_lighten(LV_PALETTE_GREY, 1), 0);
-    // 设置文字
-    lv_label_set_text(title, "启动中...");
-    // 设置文字的字体
-    lv_obj_set_style_text_font(title, &font_puhui_16_4, 0);
-    // 设置文字的对齐方式
-    lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
-    // 设置对齐方式
-    lv_obj_set_align(title, LV_ALIGN_TOP_MID);
 
-    /*-----------------------创建内容标签---------------------------*/
-    contentLabel = lv_label_create(scr);
-    // 设置文字
+    // 设置屏幕背景色为深色，更有科技感
+    lv_obj_set_style_bg_color(scr, lv_color_hex(0x121212), 0);
+
+    /*------------------创建标题------------------------*/
+    title = lv_label_create(scr);
+    lv_obj_set_size(title, lv_pct(100), 32);
+    lv_obj_set_style_bg_opa(title, LV_OPA_COVER, 0);
+    // 使用深蓝色渐变背景
+    lv_obj_set_style_bg_color(title, lv_color_hex(0x1A73E8), 0);
+    lv_obj_set_style_bg_grad_color(title, lv_color_hex(0x0D47A1), 0);
+    lv_obj_set_style_bg_grad_dir(title, LV_GRAD_DIR_VER, 0);
+    lv_obj_set_style_radius(title, 0, 0); // 顶部平齐
+    lv_obj_set_style_text_color(title, lv_color_white(), 0);
+    lv_label_set_text(title, "启动中...");
+    lv_obj_set_style_text_font(title, &font_puhui_16_4, 0);
+    lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_pad_top(title, 6, 0); // 微调文字垂直居中
+
+    /*-----------------------创建内容容器（气泡卡片）---------------------------*/
+    contentCont = lv_obj_create(scr);
+    lv_obj_set_size(contentCont, lv_pct(92), 100); // 稍微加高容器
+    lv_obj_align(contentCont, LV_ALIGN_BOTTOM_MID, 0, -10); // 靠下放置
+    lv_obj_set_style_bg_color(contentCont, lv_color_hex(0x212121), 0); // 更深的背景色
+    lv_obj_set_style_radius(contentCont, 12, 0);
+    lv_obj_set_style_border_width(contentCont, 0, 0);
+    lv_obj_set_style_shadow_width(contentCont, 10, 0);
+    lv_obj_set_style_shadow_opa(contentCont, LV_OPA_30, 0);
+    // 关键优化：增加内边距，防止文字贴边
+    lv_obj_set_style_pad_all(contentCont, 12, 0);
+    // 允许内容滚动
+    lv_obj_set_scrollbar_mode(contentCont, LV_SCROLLBAR_MODE_AUTO);
+
+    contentLabel = lv_label_create(contentCont);
     lv_label_set_text(contentLabel, "");
-    // 设置文字的字体
+    lv_obj_set_style_text_color(contentLabel, lv_color_hex(0xE0E0E0), 0);
     lv_obj_set_style_text_font(contentLabel, &font_puhui_16_4, 0);
-    // 设置对齐方式
-    lv_obj_align(contentLabel, LV_ALIGN_CENTER,0,0);
-    //设置大小
-    lv_obj_set_size(contentLabel, lv_pct(100), lv_pct(30));
-    // 设置长文本模式[文本过长换行]
+    lv_obj_set_width(contentLabel, lv_pct(100));
     lv_label_set_long_mode(contentLabel, LV_LABEL_LONG_MODE_WRAP);
-    // 设置文字的对齐方式
     lv_obj_set_style_text_align(contentLabel, LV_TEXT_ALIGN_CENTER, 0);
+    // 关键优化：增加行间距（Line Spacing）
+    lv_obj_set_style_text_line_space(contentLabel, 4, 0);
+    lv_obj_center(contentLabel);
+
     /*-----------------------创建Emoji标签--------------------------*/
     emojiLable = lv_label_create(scr);
-    // 设置图片字体
     lv_obj_set_style_text_font(emojiLable, font_emoji_32_init(), 0);
-    // 设置默认显示文字
     lv_label_set_text(emojiLable, "🙂");
-    // 显示对齐方式[居中对齐, 往上偏移100个像素]
-    lv_obj_align(emojiLable, LV_ALIGN_CENTER, 0, -100);
+    lv_obj_align(emojiLable, LV_ALIGN_CENTER, 0, -55);
+
+    /*-----------------------创建WiFi图标--------------------------*/
+    wifiIcon = lv_label_create(scr);
+    lv_label_set_text(wifiIcon, LV_SYMBOL_WIFI);
+    lv_obj_set_style_text_color(wifiIcon, lv_color_hex(0xAAAAAA), 0); // 默认灰色
+    lv_obj_align(wifiIcon, LV_ALIGN_TOP_RIGHT, -10, 7);
+
+    // 为 Emoji 增加呼吸动画
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, emojiLable);
+    lv_anim_set_values(&a, LV_OPA_COVER, LV_OPA_40);
+    lv_anim_set_duration(&a, 1500);
+    lv_anim_set_playback_duration(&a, 1500);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_exec_cb(&a, App_Display_OpaAnimCb);
+    lv_anim_start(&a);
+
     lvgl_port_unlock();
 }
 
@@ -163,6 +201,8 @@ void App_Display_SetContentText(char *datas)
 {
     lvgl_port_lock(0);
     lv_label_set_text(contentLabel, datas);
+    // 确保文字更新后，容器滚动回到最顶部
+    lv_obj_scroll_to_y(contentCont, 0, LV_ANIM_OFF);
     lvgl_port_unlock();
 }
 
@@ -186,6 +226,32 @@ void App_Display_SetEmojiText(char *emotion)
             return;
         }
     }
+}
+
+/**
+ * @brief 根据 RSSI 更新 WiFi 图标颜色
+ * @param rssi 信号强度，0 表示断开
+ */
+void App_Display_SetWifiIcon(int rssi)
+{
+    lvgl_port_lock(0);
+    if (rssi == 0) {
+        lv_obj_set_style_text_color(wifiIcon, lv_color_hex(0xFF0000), 0); // 红色表示断开
+        lv_label_set_text(wifiIcon, LV_SYMBOL_CLOSE);
+    } else {
+        lv_label_set_text(wifiIcon, LV_SYMBOL_WIFI);
+        if (rssi > -50) {
+            // 信号极好
+            lv_obj_set_style_text_color(wifiIcon, lv_color_hex(0x00FF00), 0); // 绿色
+        } else if (rssi > -70) {
+            // 信号一般
+            lv_obj_set_style_text_color(wifiIcon, lv_color_hex(0xFFFF00), 0); // 黄色
+        } else {
+            // 信号较差
+            lv_obj_set_style_text_color(wifiIcon, lv_color_hex(0xFFA500), 0); // 橙色
+        }
+    }
+    lvgl_port_unlock();
 }
 
 lv_obj_t * qr;

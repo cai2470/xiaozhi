@@ -9,4 +9,5 @@ void App_Display_SetContentText(char *datas);
 void App_Display_SetEmojiText(char *datas);
 void App_Display_ShowQRCode(void *datas, size_t len);
 void App_Display_DeleteQRCode(void);
+void App_Display_SetWifiIcon(int rssi);
 #endif

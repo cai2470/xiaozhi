@@ -6,6 +6,7 @@
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
 #include "esp_log.h"
+#include "esp_wifi.h"
 /* --- 2. 引入各个模块的头文件 (解决 KEY1, WIFI 等未定义报错) --- */
 #include "Inf_key.h"       // 定义了 KeyNum, KEY1, KEY2
 #include "Driver_WIFI.h"   // 定义了 Driver_WIFI_Init
@@ -25,6 +26,8 @@ extern bool is_wakup;
 static void App_Application_KeyCallback(void *button_handle, void *user_data);
 
 static void App_Application_WIFIConnectedCallback(void);
+
+static void App_Application_WifiMonitorTask(void *pvParameters);
 
 static void App_Application_CreateRingBuffer(void);
 
@@ -81,6 +84,9 @@ void App_Application_Start(void)
     App_Communication_Init();
 
     App_Display_SetContentText("请使用\"你好,小智\"唤醒");
+
+    // 启动 WiFi 信号监控任务，每 5 秒更新一次
+    xTaskCreate(App_Application_WifiMonitorTask, "wifi_monitor", 2048, NULL, 3, NULL);
 }
 
 // 按键的回调函数
@@ -103,9 +109,34 @@ static void App_Application_KeyCallback(void *button_handle, void *user_data)
 static void App_Application_WIFIConnectedCallback(void)
 {
     MyLogE("WIFI 连接成功!");
+    
+    // 获取信号强度并更新图标
+    wifi_ap_record_t ap_info;
+    if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK)
+    {
+        App_Display_SetWifiIcon(ap_info.rssi);
+    }
 
     // 设置事件标志，表示WIFI连接成功
     xEventGroupSetBits(global_event, WIFI_CONNECTED);
+}
+
+/**
+ * @brief WiFi 信号强度监控任务
+ */
+static void App_Application_WifiMonitorTask(void *pvParameters)
+{
+    wifi_ap_record_t ap_info;
+    while (1) {
+        // 获取当前连接的 AP 信息
+        if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+            App_Display_SetWifiIcon(ap_info.rssi);
+        } else {
+            // 获取失败（如断开连接）时传入 0
+            App_Display_SetWifiIcon(0);
+        }
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    }
 }
 
 /**
