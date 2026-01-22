@@ -17,7 +17,7 @@ void Inf_Led_Init(void)
         .strip_gpio_num = LED_STRIP_GPIO_PIN,                        // The GPIO that connected to the LED strip's data line
         .max_leds = LED_STRIP_LED_COUNT,                             // The number of LEDs in the strip,
         .led_model = LED_MODEL_WS2812,                               // LED strip model
-        .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_RGB, // The color order of the strip: GRB
+        .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB, // 修改为 GRB 线序
         .flags = {
             .invert_out = false, // don't invert the output signal
         }};
