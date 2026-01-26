@@ -60,10 +60,12 @@ void App_Application_Start(void)
     Driver_WIFI_RegisterCallback(App_Application_WIFIConnectedCallback);
 
     // 初始化WIFI
+    MyLogI("正在初始化 WiFi...");
     Driver_WIFI_Init();
 
     // 等待WiFi连接成功的等待函数，就是进入阻塞态的函数
     xEventGroupWaitBits(global_event, WIFI_CONNECTED, pdFALSE, pdTRUE, portMAX_DELAY);
+    MyLogI("WiFi 已就绪，继续启动流程");
     App_Display_SetTitleText("启动中...");
     // 删除二维码
     App_Display_DeleteQRCode();
