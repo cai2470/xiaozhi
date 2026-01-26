@@ -37,16 +37,24 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
         if (strcmp(evt->header_key, "Content-Length") == 0)
         {
             // 获取本次http响应的数据的长度
-            uint16_t len = atoi(evt->header_value);
+            int len = atoi(evt->header_value);
             // 申请内存存储响应数据
-            output_buffer = (char *)heap_caps_malloc(len, MALLOC_CAP_SPIRAM);
+            if (len > 0) {
+                if (output_buffer) free(output_buffer);
+                output_buffer = (char *)heap_caps_malloc(len + 1, MALLOC_CAP_SPIRAM);
+                if (output_buffer) {
+                    memset(output_buffer, 0, len + 1);
+                }
+            }
         }
 
         break;
     case HTTP_EVENT_ON_DATA:
         ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
         // 将本次接收的数据存储到缓冲中
-        memcpy(&output_buffer[output_len], (char *)evt->data, evt->data_len);
+        if (output_buffer) {
+            memcpy(&output_buffer[output_len], (char *)evt->data, evt->data_len);
+        }
         output_len += evt->data_len;
 
         break;

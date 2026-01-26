@@ -55,10 +55,11 @@ void App_OTA_Activity(void)
             // 没有激活，且【修复点 3】增加空指针检查
             if (activation_code != NULL)
             {
-                asprintf(&str, "请拿着激活码[%s]到官网先激活", activation_code);
-                MyLogE("%s", str);
-                App_Display_SetContentText(str);
-                free(str); // 别忘了释放 asprintf 分配的内存
+                if (asprintf(&str, "请拿着激活码[%s]到官网先激活", activation_code) != -1) {
+                    MyLogE("%s", str);
+                    App_Display_SetContentText(str);
+                    free(str);
+                }
             }
             else
             {
@@ -104,6 +105,10 @@ static void App_OTA_HttpReceiveHandle(char *datas, int len)
         if (token)
             free(token);
         token = strdup(token_obj->valuestring);
+
+        if (websocket_url == NULL || token == NULL) {
+            MyLogE("内存不足，无法保存 WebSocket 凭证");
+        }
     }
 
     // 处理激活逻辑
@@ -123,7 +128,9 @@ static void App_OTA_HttpReceiveHandle(char *datas, int len)
             if (activation_code)
                 free(activation_code);
             activation_code = strdup(code->valuestring);
-            MyLogW("设备未激活，激活码: %s", activation_code);
+            if (activation_code) {
+                MyLogW("设备未激活，激活码: %s", activation_code);
+            }
         }
         xEventGroupSetBits(global_event, ACTIVATION_FAIL);
     }

@@ -160,6 +160,8 @@ static void App_Application_CreateRingBuffer(void)
 // 唤醒
 static void App_Application_Wakup(void)
 {
+    is_wakup = true; // 确保唤醒标志位在逻辑开始时明确置位
+
     switch (communicationStatus)
     {
     case IDLE:
@@ -183,6 +185,7 @@ static void App_Application_Wakup(void)
     App_Application_ClearRingBuffer(sr_to_encoder_buff);
     App_Application_ClearRingBuffer(encoder_to_ws_buff);
 
+    // 状态重置为空闲，准备接收 VAD 切换到 LISTING
     communicationStatus = IDLE;
     App_Communication_SendWakup();
 }

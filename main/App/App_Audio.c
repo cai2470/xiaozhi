@@ -99,10 +99,10 @@ static void App_Audio_ReadEs8311ToBufferTaskFunc(void *args)
     while (1)
     {
         // 读取ES8311的麦克风数据
-        if (Inf_ES8311_Read(datas, 512) == ESP_CODEC_DEV_OK)
+        if (Inf_ES8311_Read(datas, sizeof(datas)) == ESP_CODEC_DEV_OK)
         {
             // 修正：增加第一个参数 handle
-            xRingbufferSend(es8311_to_sr_buffer, datas, 512, portMAX_DELAY);
+            xRingbufferSend(es8311_to_sr_buffer, datas, sizeof(datas), portMAX_DELAY);
         }
         else {
             vTaskDelay(pdMS_TO_TICKS(10)); // 读取失败时稍作等待，防止死循环刷屏
@@ -180,13 +180,13 @@ static void App_Audio_SRToBufferTaskFunc(void *args)
             // 优先处理 vad_cache (仅在说话开始的第一帧存在)，确保不丢失单词开头
             if (res->vad_cache_size > 0)
             {
-                if (xRingbufferSend(sr_to_encoder_buff, res->vad_cache, res->vad_cache_size, 0) == pdFALSE)
+                if (xRingbufferSend(sr_to_encoder_buff, res->vad_cache, res->vad_cache_size, pdMS_TO_TICKS(10)) == pdFALSE)
                 {
                     MyLogW("sr_to_encoder_buff 满，丢弃 VAD 预录数据");
                 }
             }
             // 存入当前帧音频
-            if (xRingbufferSend(sr_to_encoder_buff, res->data, res->data_size, 0) == pdFALSE)
+            if (xRingbufferSend(sr_to_encoder_buff, res->data, res->data_size, pdMS_TO_TICKS(10)) == pdFALSE)
             {
                 MyLogW("sr_to_encoder_buff 满，丢弃当前音频帧");
             }
@@ -293,7 +293,7 @@ static void App_Audio_BufferToEncoderTaskFunc(void *args)
         if (Inf_Encoder_Process(&in_frame, &out_frame) == ESP_AUDIO_ERR_OK)
         {
             // 3. 将编码后的数据存入下一个缓冲区，准备交给 WebSocket 发送
-            if (xRingbufferSend(encoder_to_ws_buff, raw_data, out_frame.encoded_bytes, 0) == pdFALSE)
+            if (xRingbufferSend(encoder_to_ws_buff, raw_data, out_frame.encoded_bytes, pdMS_TO_TICKS(10)) == pdFALSE)
             {
                 MyLogW("encoder_to_ws_buff 满了，丢弃了编码后的数据");
             }

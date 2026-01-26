@@ -85,11 +85,12 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
             cJSON *session = cJSON_GetObjectItemCaseSensitive(root, "session_id");
             if (session && cJSON_IsString(session))
             {
-                if (session_id) {
-                    free(session_id);
-                    session_id = NULL;
+                char *new_sid = strdup(session->valuestring);
+                if (new_sid) {
+                    char *old_sid = session_id;
+                    session_id = new_sid; // 先指向新地址
+                    if (old_sid) free(old_sid); // 再释放旧地址
                 }
-                session_id = strdup(session->valuestring); // 保存全局 session_id
                 xEventGroupSetBits(global_event, WEBSOCKET_HELLO_RESPONSE);
             }
 
@@ -189,7 +190,8 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
     else
     {
         // 音频数据
-        if (xRingbufferSend(ws_to_decoder_buff, datas, len, 0) == pdFALSE)
+        // 建议增加极短的阻塞时间（如10ms），防止网络包过快导致缓冲区瞬间溢出
+        if (xRingbufferSend(ws_to_decoder_buff, datas, len, pdMS_TO_TICKS(10)) == pdFALSE)
         {
             MyLogW("ws_to_decoder_buff 满，丢弃下行音频数据");
         }
@@ -226,11 +228,13 @@ void App_Communication_ConnectServer(void)
     // 只有在client第一次连接的时候 才需要设置头信息 否则重复设置会报错
     if (is_first_connect)
     {
-
         // 设置头信息
         char *auth = NULL;
-        asprintf(&auth, "Bearer %s", token);
-        Driver_Websocket_AppendHeader("Authorization", auth);
+        if (asprintf(&auth, "Bearer %s", token) != -1) {
+            Driver_Websocket_AppendHeader("Authorization", auth);
+            free(auth); // asprintf 分配的内存需要释放
+        }
+        
         Driver_Websocket_AppendHeader("Protocol-Version", "1");
         Driver_Websocket_AppendHeader("Device-Id", (char *)device_id);
         Driver_Websocket_AppendHeader("Client-Id", (char *)client_id);
@@ -359,13 +363,15 @@ static void App_Communication_UploadAudioTaskFunc(void *args)
     char *datas = NULL;
     while (1)
     {
-
         // 取出音频数据
         datas = (char *)xRingbufferReceive(encoder_to_ws_buff, &size, portMAX_DELAY);
 
         if (datas != NULL) {
-            //  只有在监听的时候 才需要发送音频
-            if (session_id && communicationStatus == LISTING && size > 0)
+            // 增加局部变量快照，防止在发送过程中 session_id 被其他任务 free 掉
+            char *current_sid = session_id;
+            
+            // 只有在监听的时候 才需要发送音频
+            if (current_sid && communicationStatus == LISTING && size > 0)
             {
                 // 将音频发到服务器
                 Driver_Websocket_Send(datas, (int)size, WEBSOCKET_BIN_DATA);
