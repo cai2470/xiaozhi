@@ -102,7 +102,11 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
                 if (desc_json)
                 {
                     // 3. 动态注入 session_id
-                    cJSON_ReplaceItemInObject(desc_json, "session_id", cJSON_CreateString(session_id));
+                    if (cJSON_HasObjectItem(desc_json, "session_id")) {
+                        cJSON_ReplaceItemInObject(desc_json, "session_id", cJSON_CreateString(session_id));
+                    } else {
+                        cJSON_AddStringToObject(desc_json, "session_id", session_id);
+                    }
 
                     // 4. 转回字符串发送
                     char *final_desc = cJSON_PrintUnformatted(desc_json);
