@@ -200,11 +200,18 @@ static void App_Audio_BufferToDecoderTaskFunc(void *args)
 
     // 需要解码的数据结构
     esp_audio_dec_in_raw_t raw;
-    // 建议预分配足够大的缓冲区（如 20KB），减少 realloc 频率
-    size_t out_buf_size = 20 * 1024;
+    // 预分配足够大的缓冲区，避免频繁 realloc 导致内存碎片
+    size_t out_buf_capacity = 20 * 1024;
     esp_audio_dec_out_frame_t out = {
-        .buffer = heap_caps_malloc(out_buf_size, MALLOC_CAP_SPIRAM),
-        .len = out_buf_size};
+        .buffer = heap_caps_malloc(out_buf_capacity, MALLOC_CAP_SPIRAM),
+        .len = out_buf_capacity};
+        
+    if (out.buffer == NULL) {
+        MyLogE("无法分配解码缓冲区！");
+        vTaskDelete(NULL);
+        return;
+    }
+
     esp_audio_err_t error;
     uint8_t* datas = NULL;
 
