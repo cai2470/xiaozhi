@@ -121,11 +121,12 @@ static void App_Application_WIFIConnectedCallback(void)
 static void App_Application_WifiMonitorTask(void *pvParameters)
 {
     while (1) {
-        // 只有当事件组中的 WIFI_CONNECTED 位被置 1 时，才执行监控
-        if (xEventGroupGetBits(global_event) & WIFI_CONNECTED) {
+        // 使用 WaitBits 代替 GetBits + Delay，可以更优雅地处理连接断开的情况
+        EventBits_t bits = xEventGroupWaitBits(global_event, WIFI_CONNECTED, pdFALSE, pdTRUE, pdMS_TO_TICKS(5000));
+        if (bits & WIFI_CONNECTED) {
             App_Display_SetWifiIcon(Driver_WIFI_GetRSSI());
         }
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        // 如果连接断开，WaitBits 会在 5s 后超时，循环继续，直到再次连接
     }
 }
 
