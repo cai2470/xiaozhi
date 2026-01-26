@@ -85,8 +85,10 @@ static void App_Communication_WebsocketReceiveHandle(char *datas, int len, Webso
             cJSON *session = cJSON_GetObjectItemCaseSensitive(root, "session_id");
             if (session && cJSON_IsString(session))
             {
-                if (session_id)
+                if (session_id) {
                     free(session_id);
+                    session_id = NULL;
+                }
                 session_id = strdup(session->valuestring); // 保存全局 session_id
                 xEventGroupSetBits(global_event, WEBSOCKET_HELLO_RESPONSE);
             }

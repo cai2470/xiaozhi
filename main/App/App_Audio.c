@@ -244,6 +244,8 @@ static void App_Audio_BufferToDecoderTaskFunc(void *args)
             {
                 // 3. 播放解码后的 PCM 音频
                 Inf_ES8311_Write(out.buffer, out.decoded_size);
+                // 确保下一次循环时，len 依然是缓冲区的总容量
+                out.len = out_buf_capacity;
                 // 更新指针，准备处理下一帧
                 raw.len -= raw.consumed;
                 raw.buffer += raw.consumed;
