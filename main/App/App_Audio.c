@@ -104,7 +104,11 @@ static void App_Audio_ReadEs8311ToBufferTaskFunc(void *args)
             // 修正：增加第一个参数 handle
             xRingbufferSend(es8311_to_sr_buffer, datas, 512, portMAX_DELAY);
         }
-        vTaskDelay(1);
+        else {
+            vTaskDelay(pdMS_TO_TICKS(10)); // 读取失败时稍作等待，防止死循环刷屏
+        }
+        // 如果 Read 是阻塞的，正常情况下这里不需要 vTaskDelay(1)，
+        // 因为 I2S 驱动会自动让出 CPU。
     }
 }
 
@@ -117,6 +121,11 @@ static void App_Audio_ReadBufferToSRTaskFunc(void *args)
 
     // 申请本地缓冲区
     int16_t *sr_input_buf = (int16_t *)heap_caps_malloc(size_bytes, MALLOC_CAP_SPIRAM);
+    if (sr_input_buf == NULL) {
+        MyLogE("无法为 SR 任务分配内存！");
+        vTaskDelete(NULL);
+        return;
+    }
 
     while (1)
     {
