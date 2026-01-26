@@ -235,7 +235,7 @@ static void App_Audio_BufferToDecoderTaskFunc(void *args)
                 }
                 out.buffer = retry_buf;
                 out.len = out.needed_size;
-                out_buf_size = out.needed_size;
+                out_buf_capacity = out.needed_size;
                 // 扩容后不需要 break，继续尝试解码当前帧
             }
             else if (error == ESP_AUDIO_ERR_OK)
