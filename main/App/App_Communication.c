@@ -363,16 +363,17 @@ static void App_Communication_UploadAudioTaskFunc(void *args)
         // 取出音频数据
         datas = (char *)xRingbufferReceive(encoder_to_ws_buff, &size, portMAX_DELAY);
 
-        // MyLogE("LEN=%d",size);
-        //  只有在监听的时候 才需要发送音频
-        if (session_id && communicationStatus == LISTING && datas && (int)size > 0)
-        {
-            // 将音频发到服务器
-            Driver_Websocket_Send(datas, (int)size, WEBSOCKET_BIN_DATA);
+        if (datas != NULL) {
+            //  只有在监听的时候 才需要发送音频
+            if (session_id && communicationStatus == LISTING && size > 0)
+            {
+                // 将音频发到服务器
+                Driver_Websocket_Send(datas, (int)size, WEBSOCKET_BIN_DATA);
+            }
+            // 内存回收
+            vRingbufferReturnItem(encoder_to_ws_buff, datas);
         }
         size = 0; // 确保每次循环开始前 size 状态明确
-        // 内存回收
-        vRingbufferReturnItem(encoder_to_ws_buff, datas);
 
     }
 }
