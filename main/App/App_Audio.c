@@ -218,7 +218,9 @@ static void App_Audio_BufferToDecoderTaskFunc(void *args)
     while (1)
     {
         // 1. 从缓冲获取数据 (阻塞等待 WebSocket 收到音频包)
-        datas = (uint8_t *)xRingbufferReceive(ws_to_decoder_buff, (size_t*)&raw.len, portMAX_DELAY);
+        size_t received_len = 0;
+        datas = (uint8_t *)xRingbufferReceive(ws_to_decoder_buff, &received_len, portMAX_DELAY);
+        raw.len = (uint32_t)received_len;
         raw.buffer = datas;
 
         // 2. 循环解码：一包数据可能包含多个音频帧
