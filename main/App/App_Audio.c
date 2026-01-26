@@ -122,7 +122,7 @@ static void App_Audio_ReadBufferToSRTaskFunc(void *args)
     // 申请本地缓冲区
     int16_t *sr_input_buf = (int16_t *)heap_caps_malloc(size_bytes, MALLOC_CAP_SPIRAM);
     if (sr_input_buf == NULL) {
-        MyLogE("无法为 SR 任务分配内存！");
+        ESP_LOGE("AUDIO", "Failed to allocate %d bytes for SR task", size_bytes);
         vTaskDelete(NULL);
         return;
     }
