@@ -369,7 +369,6 @@ static void App_Communication_UploadAudioTaskFunc(void *args)
         // 内存回收
         vRingbufferReturnItem(encoder_to_ws_buff, datas);
 
-        vTaskDelay(1);
     }
 }
 
