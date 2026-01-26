@@ -359,7 +359,7 @@ static void App_Communication_UploadAudioTaskFunc(void *args)
 
         // MyLogE("LEN=%d",size);
         //  只有在监听的时候 才需要发送音频
-        if (communicationStatus == LISTING && datas && size > 0)
+        if (session_id && communicationStatus == LISTING && datas && size > 0)
         {
             // 将音频发到服务器
             Driver_Websocket_Send(datas, (int)size, WEBSOCKET_BIN_DATA);
