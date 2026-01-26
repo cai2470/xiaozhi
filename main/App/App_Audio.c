@@ -249,6 +249,7 @@ static void App_Audio_BufferToDecoderTaskFunc(void *args)
                 raw.buffer += raw.consumed;
             }
             else {
+                MyLogE("解码器发生错误: 0x%x", error);
                 // 遇到无法解析的错误，跳出循环处理下一包
                 break;
             }
