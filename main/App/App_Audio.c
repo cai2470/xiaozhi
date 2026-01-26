@@ -200,10 +200,11 @@ static void App_Audio_BufferToDecoderTaskFunc(void *args)
 
     // 需要解码的数据结构
     esp_audio_dec_in_raw_t raw;
-    // 用于存储解码后的pcm数据，初始分配 10KB
+    // 建议预分配足够大的缓冲区（如 20KB），减少 realloc 频率
+    size_t out_buf_size = 20 * 1024;
     esp_audio_dec_out_frame_t out = {
-        .buffer = heap_caps_malloc(10 * 1024, MALLOC_CAP_SPIRAM),
-        .len = 10 * 1024};
+        .buffer = heap_caps_malloc(out_buf_size, MALLOC_CAP_SPIRAM),
+        .len = out_buf_size};
     esp_audio_err_t error;
     uint8_t* datas = NULL;
 
@@ -220,8 +221,14 @@ static void App_Audio_BufferToDecoderTaskFunc(void *args)
             if (error == ESP_AUDIO_ERR_BUFF_NOT_ENOUGH)
             {
                 // 缓冲区不够，动态扩容
-                out.buffer = (uint8_t *)heap_caps_realloc(out.buffer, out.needed_size, MALLOC_CAP_SPIRAM);
+                uint8_t *retry_buf = (uint8_t *)heap_caps_realloc(out.buffer, out.needed_size, MALLOC_CAP_SPIRAM);
+                if (retry_buf == NULL) {
+                    MyLogE("解码器扩容失败，丢弃当前帧");
+                    break;
+                }
+                out.buffer = retry_buf;
                 out.len = out.needed_size;
+                out_buf_size = out.needed_size;
                 // 扩容后不需要 break，继续尝试解码当前帧
             }
             else if (error == ESP_AUDIO_ERR_OK)
